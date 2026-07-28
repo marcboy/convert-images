@@ -288,7 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (err) {
                 console.error(err);
                 item.status = 'error';
-                updateItemStatus(item, 'error', 'Error');
+                updateItemStatus(item, 'error', `Error: ${err.message || err}`);
                 showProgressBar(item, false);
             }
         }
