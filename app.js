@@ -72,10 +72,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Startup log check
     setTimeout(() => {
         console.log(`Checking system state...`);
-        if (typeof heic2any === 'undefined') {
-            console.error(`Library heic2any is UNDEFINED! Please check if heic2any.min.js was loaded correctly.`);
+        if (typeof heicConvert === 'undefined') {
+            console.error(`Library heicConvert is UNDEFINED! Please check if heic-convert-browser.js was loaded correctly.`);
         } else {
-            console.log(`Library heic2any loaded successfully.`);
+            console.log(`Library heicConvert loaded successfully.`);
         }
         if (typeof JSZip === 'undefined') {
             console.error(`Library JSZip is UNDEFINED!`);
@@ -311,44 +311,39 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 let blobToProcess = item.file;
 
-                // Handle HEIC/HEIF files specifically using heic2any
+                // Handle HEIC/HEIF files specifically using heic-convert
                 if (item.isHeic) {
-                    console.log(`[HEIC] File "${item.name}" detected as HEIC format. Initializing heic2any decoder...`);
-                    if (typeof heic2any === 'undefined') {
-                        throw new Error('heic2any library is not loaded or failed to initialize.');
+                    console.log(`[HEIC] File "${item.name}" detected as HEIC format. Initializing heicConvert decoder...`);
+                    if (typeof heicConvert === 'undefined') {
+                        throw new Error('heicConvert library is not loaded or failed to initialize.');
                     }
                     try {
                         updateItemStatus(item, 'processing', 'Decoding HEIC...');
                         
-                        let conversionResult;
+                        console.log(`[HEIC] Reading file into ArrayBuffer...`);
+                        const arrayBuffer = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = (e) => resolve(e.target.result);
+                            reader.onerror = (e) => reject(new Error('Failed to read HEIC file data.'));
+                            reader.readAsArrayBuffer(item.file);
+                        });
+
+                        console.log(`[HEIC] Invoking heicConvert (format: 'JPEG')...`);
                         const startTime = performance.now();
-                        
-                        try {
-                            console.log(`[HEIC] Invoking heic2any with multiple: true (to extract main frame from Live/Burst photos)...`);
-                            conversionResult = await heic2any({
-                                blob: item.file,
-                                toType: 'image/jpeg',
-                                quality: 0.95,
-                                multiple: true
-                            });
-                        } catch (multipleError) {
-                            console.warn(`[HEIC] Decoding with multiple: true failed, retrying standard mode... Error details:`, multipleError);
-                            console.log(`[HEIC] Invoking heic2any standard mode (multiple: false)...`);
-                            conversionResult = await heic2any({
-                                blob: item.file,
-                                toType: 'image/jpeg',
-                                quality: 0.95
-                            });
-                        }
-                        
+                        const outputBuffer = await heicConvert({
+                            buffer: arrayBuffer,
+                            format: 'JPEG',
+                            quality: 1
+                        });
                         const endTime = performance.now();
+                        
                         console.log(`[HEIC] Decoded successfully in ${((endTime - startTime) / 1000).toFixed(2)} seconds.`);
                         
-                        blobToProcess = Array.isArray(conversionResult) ? conversionResult[0] : conversionResult;
+                        blobToProcess = new Blob([outputBuffer], { type: 'image/jpeg' });
                         console.log(`[HEIC] Intermediate JPEG Blob created: size = ${formatBytes(blobToProcess.size)}`);
                     } catch (heicError) {
-                        console.error(`[HEIC] Decoder failed: ${heicError.message || heicError}`);
-                        throw new Error(`HEIC decoding failed: ${heicError.message || heicError || 'unknown library error'}`);
+                        console.error(`[HEIC] Decoder failed:`, heicError);
+                        throw new Error(`HEIC decoding failed: ${heicError.message || heicError}`);
                     }
                 }
 
