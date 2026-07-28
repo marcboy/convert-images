@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PixelShift | Premium Image Converter & Batch Processor</title>
+    <meta name="description" content="Convert your images to HEIC, WebP, PNG, JPEG, and other formats instantly in your browser. Secure, fast, and completely local.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+    <!-- JSZip for batch downloads -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- heic2any for HEIC support -->
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="glass-bg"></div>
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+
+    <header class="navbar">
+        <div class="nav-container">
+            <div class="logo">
+                <i data-lucide="image-plus" class="logo-icon"></i>
+                <span class="logo-text">Pixel<span class="gradient-text">Shift</span></span>
+            </div>
+            <div class="badge">
+                <span class="status-dot"></span>
+                <span>100% Local & Secure</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <section class="hero-section">
+            <h1 class="hero-title">Convert Images <span class="gradient-text">Instantly</span></h1>
+            <p class="hero-subtitle">Convert JPEG, PNG, WebP, BMP, TIFF, and HEIC/HEIF files locally inside your browser. No files are uploaded to any server.</p>
+        </section>
+
+        <!-- Converter Card -->
+        <section class="converter-card" id="converterApp">
+            <!-- Dropzone -->
+            <div class="dropzone" id="dropzone">
+                <input type="file" id="fileInput" multiple accept="image/*,.heic,.heif" class="file-input">
+                <div class="dropzone-content">
+                    <div class="icon-wrapper">
+                        <i data-lucide="upload-cloud" class="upload-icon"></i>
+                    </div>
+                    <h3>Drag & drop your images here</h3>
+                    <p class="dropzone-hint">Supports PNG, JPEG, WebP, BMP, GIF, TIFF, and HEIC</p>
+                    <button class="btn btn-primary" id="browseBtn">
+                        <i data-lucide="folder-open"></i> Browse Files
+                    </button>
+                </div>
+            </div>
+
+            <!-- Configuration & Control Panel (Hidden initially, shown when files are loaded) -->
+            <div class="control-panel hidden" id="controlPanel">
+                <div class="panel-header">
+                    <h3 class="panel-title"><i data-lucide="sliders"></i> Conversion Settings</h3>
+                    <button class="btn-clear" id="clearAllBtn">
+                        <i data-lucide="trash-2"></i> Clear All
+                    </button>
+                </div>
+
+                <div class="settings-grid">
+                    <!-- Format Selection -->
+                    <div class="settings-group">
+                        <label for="formatSelect"><i data-lucide="repeat"></i> Convert to</label>
+                        <div class="select-wrapper">
+                            <select id="formatSelect">
+                                <option value="image/jpeg">JPEG (.jpg)</option>
+                                <option value="image/png" selected>PNG (.png)</option>
+                                <option value="image/webp">WebP (.webp)</option>
+                                <option value="image/gif">GIF (.gif)</option>
+                                <option value="image/bmp">BMP (.bmp)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Quality Slider (shown for jpeg/webp) -->
+                    <div class="settings-group" id="qualityGroup">
+                        <div class="label-with-value">
+                            <label for="qualityRange"><i data-lucide="sliders-horizontal"></i> Image Quality</label>
+                            <span id="qualityVal">85%</span>
+                        </div>
+                        <input type="range" id="qualityRange" min="5" max="100" value="85" class="slider">
+                    </div>
+                </div>
+
+                <!-- Batch Actions -->
+                <div class="batch-actions">
+                    <div class="queue-status" id="queueStatus">
+                        Ready to convert 0 files
+                    </div>
+                    <div class="action-buttons">
+                        <button class="btn btn-gradient" id="convertAllBtn">
+                            <i data-lucide="zap"></i> Convert All
+                        </button>
+                        <button class="btn btn-secondary hidden" id="downloadZipBtn">
+                            <i data-lucide="download-cloud"></i> Download ZIP
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Queue List / Preview area -->
+            <div class="queue-container hidden" id="queueContainer">
+                <h3 class="section-title"><i data-lucide="layers"></i> File Queue</h3>
+                <div class="queue-list" id="queueList">
+                    <!-- Queue items will be generated dynamically -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Grid -->
+        <section class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon"><i data-lucide="shield-check"></i></div>
+                <h4>Zero Server Uploads</h4>
+                <p>Your privacy is guaranteed. All image conversion is done directly on your device using Web Assembly and HTML5.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i data-lucide="zap"></i></div>
+                <h4>HEIC & HEIF Support</h4>
+                <p>Convert Apple's high-efficiency image formats right inside your web browser into standard JPEG or PNG.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i data-lucide="files"></i></div>
+                <h4>Batch Processing</h4>
+                <p>Upload multiple files at once, customize settings, and convert them as a batch. Download individually or as a single ZIP.</p>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2026 PixelShift. Built with premium local processing.</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
