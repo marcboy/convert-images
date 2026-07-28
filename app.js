@@ -250,11 +250,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (item.isHeic) {
                     try {
                         updateItemStatus(item, 'processing', 'Decoding HEIC...');
-                        // heic2any returns a blob (which is typically a jpeg or png)
+                        // heic2any reliably decodes HEIC to JPEG.
+                        // We will decode it to JPEG first at high quality, then let canvas convert it to PNG/WebP etc.
                         const conversionResult = await heic2any({
                             blob: item.file,
-                            toType: targetMime === 'image/png' ? 'image/png' : 'image/jpeg',
-                            quality: targetMime === 'image/png' ? 1.0 : quality
+                            toType: 'image/jpeg',
+                            quality: 0.95
                         });
                         blobToProcess = Array.isArray(conversionResult) ? conversionResult[0] : conversionResult;
                     } catch (heicError) {
