@@ -319,16 +319,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     try {
                         updateItemStatus(item, 'processing', 'Decoding HEIC...');
-                        console.log(`[HEIC] Invoking heic2any (toType: 'image/jpeg', quality: 0.95) on blob...`);
                         
+                        let conversionResult;
                         const startTime = performance.now();
-                        const conversionResult = await heic2any({
-                            blob: item.file,
-                            toType: 'image/jpeg',
-                            quality: 0.95
-                        });
-                        const endTime = performance.now();
                         
+                        try {
+                            console.log(`[HEIC] Invoking heic2any with multiple: true (to extract main frame from Live/Burst photos)...`);
+                            conversionResult = await heic2any({
+                                blob: item.file,
+                                toType: 'image/jpeg',
+                                quality: 0.95,
+                                multiple: true
+                            });
+                        } catch (multipleError) {
+                            console.warn(`[HEIC] Decoding with multiple: true failed, retrying standard mode... Error details:`, multipleError);
+                            console.log(`[HEIC] Invoking heic2any standard mode (multiple: false)...`);
+                            conversionResult = await heic2any({
+                                blob: item.file,
+                                toType: 'image/jpeg',
+                                quality: 0.95
+                            });
+                        }
+                        
+                        const endTime = performance.now();
                         console.log(`[HEIC] Decoded successfully in ${((endTime - startTime) / 1000).toFixed(2)} seconds.`);
                         
                         blobToProcess = Array.isArray(conversionResult) ? conversionResult[0] : conversionResult;
