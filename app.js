@@ -195,9 +195,9 @@ document.addEventListener('DOMContentLoaded', () => {
             queueContainer.classList.remove('hidden');
             queueStatus.textContent = `Ready to convert ${fileQueue.length} file(s)`;
             
-            // Check if all are completed to show download zip
-            const allCompleted = fileQueue.every(item => item.status === 'completed');
-            if (allCompleted) {
+            // Check if any are completed to show download zip
+            const anyCompleted = fileQueue.some(item => item.status === 'completed');
+            if (anyCompleted) {
                 downloadZipBtn.classList.remove('hidden');
             } else {
                 downloadZipBtn.classList.add('hidden');
