@@ -14,11 +14,75 @@ document.addEventListener('DOMContentLoaded', () => {
     const queueStatus = document.getElementById('queueStatus');
     const queueContainer = document.getElementById('queueContainer');
     const queueList = document.getElementById('queueList');
+    
+    // Debug Console Elements
+    const debugLogs = document.getElementById('debugLogs');
+    const debugToggle = document.getElementById('debugToggle');
+    const debugToggleIcon = document.getElementById('debugToggleIcon');
 
     // Array to store queue files
     let fileQueue = [];
     // Zip handler
     let convertedZip = null;
+
+    // Log to screen function
+    function logToScreen(message, type = 'info') {
+        if (!debugLogs) return;
+        const entry = document.createElement('div');
+        entry.className = `log-entry log-${type}`;
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        entry.textContent = `[${time}] ${message}`;
+        debugLogs.appendChild(entry);
+        debugLogs.scrollTop = debugLogs.scrollHeight;
+    }
+
+    // Toggle log visibility
+    debugToggle.addEventListener('click', () => {
+        debugLogs.classList.toggle('hidden');
+        debugToggleIcon.classList.toggle('open');
+    });
+
+    // Intercept Console Logs
+    const _log = console.log;
+    const _error = console.error;
+    const _warn = console.warn;
+
+    console.log = function(...args) {
+        _log.apply(console, args);
+        logToScreen(args.join(' '), 'info');
+    };
+    console.error = function(...args) {
+        _error.apply(console, args);
+        logToScreen(args.join(' '), 'error');
+    };
+    console.warn = function(...args) {
+        _warn.apply(console, args);
+        logToScreen(args.join(' '), 'warn');
+    };
+
+    // Global uncaught errors
+    window.addEventListener('error', (event) => {
+        logToScreen(`Uncaught error: ${event.message} at ${event.filename}:${event.lineno}`, 'error');
+    });
+
+    window.addEventListener('unhandledrejection', (event) => {
+        logToScreen(`Unhandled promise rejection: ${event.reason}`, 'error');
+    });
+
+    // Startup log check
+    setTimeout(() => {
+        console.log(`Checking system state...`);
+        if (typeof heic2any === 'undefined') {
+            console.error(`Library heic2any is UNDEFINED! Please check if heic2any.min.js was loaded correctly.`);
+        } else {
+            console.log(`Library heic2any loaded successfully.`);
+        }
+        if (typeof JSZip === 'undefined') {
+            console.error(`Library JSZip is UNDEFINED!`);
+        } else {
+            console.log(`Library JSZip loaded successfully.`);
+        }
+    }, 100);
 
     // Initialize Lucide Icons
     lucide.createIcons();
@@ -240,6 +304,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Only convert waiting or failed items
             if (item.status === 'completed') continue;
 
+            console.log(`[Batch] Starting conversion for: ${item.name} (${item.size})`);
             updateItemStatus(item, 'processing', 'Converting...');
             showProgressBar(item, true);
 
@@ -248,24 +313,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Handle HEIC/HEIF files specifically using heic2any
                 if (item.isHeic) {
+                    console.log(`[HEIC] File "${item.name}" detected as HEIC format. Initializing heic2any decoder...`);
+                    if (typeof heic2any === 'undefined') {
+                        throw new Error('heic2any library is not loaded or failed to initialize.');
+                    }
                     try {
                         updateItemStatus(item, 'processing', 'Decoding HEIC...');
-                        // heic2any reliably decodes HEIC to JPEG.
-                        // We will decode it to JPEG first at high quality, then let canvas convert it to PNG/WebP etc.
+                        console.log(`[HEIC] Invoking heic2any (toType: 'image/jpeg', quality: 0.95) on blob...`);
+                        
+                        const startTime = performance.now();
                         const conversionResult = await heic2any({
                             blob: item.file,
                             toType: 'image/jpeg',
                             quality: 0.95
                         });
+                        const endTime = performance.now();
+                        
+                        console.log(`[HEIC] Decoded successfully in ${((endTime - startTime) / 1000).toFixed(2)} seconds.`);
+                        
                         blobToProcess = Array.isArray(conversionResult) ? conversionResult[0] : conversionResult;
+                        console.log(`[HEIC] Intermediate JPEG Blob created: size = ${formatBytes(blobToProcess.size)}`);
                     } catch (heicError) {
-                        console.error('HEIC decoding failed:', heicError);
-                        throw new Error('HEIC decoding failed. Make sure it is a valid HEIC file.');
+                        console.error(`[HEIC] Decoder failed: ${heicError.message || heicError}`);
+                        throw new Error(`HEIC decoding failed: ${heicError.message || heicError || 'unknown library error'}`);
                     }
                 }
 
                 // Convert blob into target format using canvas
+                console.log(`[Canvas] Loading blob into HTML5 Canvas to encode as ${targetMime} (quality: ${quality})...`);
                 const convertedBlob = await processImageBlob(blobToProcess, targetMime, quality, item);
+                console.log(`[Canvas] Processing complete! Converted size = ${formatBytes(convertedBlob.size)}`);
                 
                 item.convertedBlob = convertedBlob;
                 item.status = 'completed';
@@ -275,6 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const originalNameWithoutExt = item.name.substring(0, item.name.lastIndexOf('.'));
                 const newExt = getExtensionForMime(targetMime);
                 item.convertedName = `${originalNameWithoutExt}${newExt}`;
+                console.log(`[Success] Output target file name: ${item.convertedName}`);
 
                 updateItemStatus(item, 'completed', 'Done!');
                 showProgressBar(item, false);
@@ -284,9 +362,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (item.isHeic) {
                     const thumbUrl = URL.createObjectURL(convertedBlob);
                     document.getElementById(`thumb_${item.id}`).src = thumbUrl;
+                    console.log(`[UI] Thumbnail updated for HEIC file.`);
                 }
             } catch (err) {
-                console.error(err);
+                console.error(`[Error] Failed to convert "${item.name}":`, err.message || err);
                 item.status = 'error';
                 updateItemStatus(item, 'error', `Error: ${err.message || err}`);
                 showProgressBar(item, false);
