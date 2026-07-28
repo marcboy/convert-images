@@ -331,7 +331,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         console.log(`[HEIC] Invoking heicConvert (format: 'JPEG')...`);
                         const startTime = performance.now();
                         const outputBuffer = await heicConvert({
-                            buffer: arrayBuffer,
+                            buffer: new Uint8Array(arrayBuffer),
                             format: 'JPEG',
                             quality: 1
                         });
