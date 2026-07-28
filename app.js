@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const qualityVal = document.getElementById('qualityVal');
     const convertAllBtn = document.getElementById('convertAllBtn');
     const downloadZipBtn = document.getElementById('downloadZipBtn');
+    const saveToFolderBtn = document.getElementById('saveToFolderBtn');
     const queueStatus = document.getElementById('queueStatus');
     const queueContainer = document.getElementById('queueContainer');
     const queueList = document.getElementById('queueList');
@@ -138,6 +139,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Download ZIP
     downloadZipBtn.addEventListener('click', downloadAllAsZip);
 
+    // Save to Local Folder
+    saveToFolderBtn.addEventListener('click', saveToLocalFolder);
+
     // Handle File Selection
     function handleFileSelection(e) {
         if (e.target.files.length > 0) {
@@ -195,17 +199,20 @@ document.addEventListener('DOMContentLoaded', () => {
             queueContainer.classList.remove('hidden');
             queueStatus.textContent = `Ready to convert ${fileQueue.length} file(s)`;
             
-            // Check if any are completed to show download zip
+            // Check if any are completed to show download zip & save folder buttons
             const anyCompleted = fileQueue.some(item => item.status === 'completed');
             if (anyCompleted) {
                 downloadZipBtn.classList.remove('hidden');
+                saveToFolderBtn.classList.remove('hidden');
             } else {
                 downloadZipBtn.classList.add('hidden');
+                saveToFolderBtn.classList.add('hidden');
             }
         } else {
             controlPanel.classList.add('hidden');
             queueContainer.classList.add('hidden');
             downloadZipBtn.classList.add('hidden');
+            saveToFolderBtn.classList.add('hidden');
         }
     }
 
@@ -509,5 +516,47 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
         });
+    }
+
+    // Save all completed files directly to a selected local directory (Chromium browsers)
+    async function saveToLocalFolder() {
+        const completedItems = fileQueue.filter(item => item.status === 'completed');
+        if (completedItems.length === 0) return;
+
+        if (!('showDirectoryPicker' in window)) {
+            console.error('[File System] showDirectoryPicker is not supported in this browser.');
+            alert('Your browser does not support local directory saving. Please use Google Chrome, Microsoft Edge, or another Chromium-based browser to use this feature, or download them as a ZIP.');
+            return;
+        }
+
+        try {
+            console.log('[File System] Requesting directory access from user...');
+            const dirHandle = await window.showDirectoryPicker();
+            console.log(`[File System] Access granted to folder: "${dirHandle.name}". Starting save...`);
+            
+            let count = 0;
+            for (let item of completedItems) {
+                console.log(`[File System] Saving "${item.convertedName}"...`);
+                // Create file handle
+                const fileHandle = await dirHandle.getFileHandle(item.convertedName, { create: true });
+                // Create writable stream
+                const writable = await fileHandle.createWritable();
+                // Write blob
+                await writable.write(item.convertedBlob);
+                // Close the stream
+                await writable.close();
+                count++;
+                console.log(`[File System] Saved successfully: "${item.convertedName}"`);
+            }
+            console.log(`[File System] Completed. Saved ${count} file(s) directly to local folder.`);
+            alert(`Successfully saved ${count} image(s) directly to your chosen folder!`);
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                console.log('[File System] Folder selection aborted by user.');
+            } else {
+                console.error('[File System] Failed to write files to folder:', err);
+                alert(`Error saving to folder: ${err.message}`);
+            }
+        }
     }
 });
