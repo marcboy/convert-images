@@ -83,6 +83,12 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             console.log(`Library JSZip loaded successfully.`);
         }
+        if (typeof pdfjsLib === 'undefined') {
+            console.error(`Library pdfjsLib is UNDEFINED!`);
+        } else {
+            console.log(`Library pdfjsLib loaded successfully.`);
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
     }, 100);
 
     // Initialize Lucide Icons
@@ -152,17 +158,68 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Add files to the queue representation
-    function addFilesToQueue(files) {
+    async function addFilesToQueue(files) {
         let filesAdded = false;
 
-        Array.from(files).forEach(file => {
+        for (const file of Array.from(files)) {
             const fileExt = file.name.split('.').pop().toLowerCase();
+            const isPdf = fileExt === 'pdf' || file.type === 'application/pdf';
             const isHeic = fileExt === 'heic' || fileExt === 'heif' || file.type === 'image/heic' || file.type === 'image/heif';
             const isNormalImage = file.type.startsWith('image/') || ['heic', 'heif', 'tiff', 'tif'].includes(fileExt);
 
-            if (!isNormalImage) {
-                alert(`File "${file.name}" is not a supported image format.`);
-                return;
+            if (isPdf) {
+                try {
+                    console.log(`[PDF] Processing PDF file "${file.name}"...`);
+                    const arrayBuffer = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => resolve(e.target.result);
+                        reader.onerror = (e) => reject(new Error('Failed to read PDF file.'));
+                        reader.readAsArrayBuffer(file);
+                    });
+
+                    if (typeof pdfjsLib === 'undefined') {
+                        throw new Error('PDF.js library is not loaded.');
+                    }
+
+                    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                    const numPages = pdf.numPages;
+                    console.log(`[PDF] Loaded "${file.name}" with ${numPages} page(s).`);
+
+                    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+                        const id = 'file_' + Math.random().toString(36).substr(2, 9);
+                        const pageLabel = numPages > 1 ? ` (Page ${pageNum})` : '';
+                        const originalNameWithoutExt = file.name.substring(0, file.name.lastIndexOf('.'));
+
+                        const queueItem = {
+                            id: id,
+                            file: file,
+                            pdfPageNum: pageNum,
+                            isPdf: true,
+                            name: `${originalNameWithoutExt}${pageLabel}.pdf`,
+                            size: formatBytes(file.size),
+                            isHeic: false,
+                            status: 'waiting',
+                            progress: 0,
+                            convertedBlob: null,
+                            convertedName: null,
+                            thumbnail: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%23ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15h2a2 2 0 0 0 0-4H9v8"/></svg>'
+                        };
+
+                        fileQueue.push(queueItem);
+                        renderQueueItem(queueItem);
+                        generatePdfThumbnail(queueItem, pdf);
+                        filesAdded = true;
+                    }
+                } catch (err) {
+                    console.error(`[PDF] Error parsing PDF:`, err);
+                    alert(`Error parsing PDF "${file.name}": ${err.message}`);
+                }
+                continue;
+            }
+
+            if (!isNormalImage && !isHeic) {
+                alert(`File "${file.name}" is not a supported format.`);
+                continue;
             }
 
             // Create unique ID for the queue item
@@ -174,6 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 name: file.name,
                 size: formatBytes(file.size),
                 isHeic: isHeic,
+                isPdf: false,
                 status: 'waiting', // waiting, processing, completed, error
                 progress: 0,
                 convertedBlob: null,
@@ -185,7 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderQueueItem(queueItem);
             generateThumbnail(queueItem);
             filesAdded = true;
-        });
+        }
 
         if (filesAdded) {
             updateUIState();
@@ -268,6 +326,35 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
         reader.readAsDataURL(item.file);
+     }
+
+    // Generate thumbnail for a PDF page
+    async function generatePdfThumbnail(item, pdf) {
+        try {
+            const page = await pdf.getPage(item.pdfPageNum);
+            const scale = 0.2; // Small scale for preview
+            const viewport = page.getViewport({ scale });
+            const canvas = document.createElement('canvas');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            const context = canvas.getContext('2d');
+            
+            // Set white background for thumbnail
+            context.fillStyle = '#FFFFFF';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            
+            await page.render({
+                canvasContext: context,
+                viewport: viewport
+            }).promise;
+            
+            const thumbImg = document.getElementById(`thumb_${item.id}`);
+            if (thumbImg) {
+                thumbImg.src = canvas.toDataURL();
+            }
+        } catch (err) {
+            console.error(`[PDF] Failed to generate thumbnail for ${item.name}:`, err);
+        }
     }
 
     // Remove file from queue list
@@ -312,14 +399,61 @@ document.addEventListener('DOMContentLoaded', () => {
             if (item.status === 'completed') continue;
 
             console.log(`[Batch] Starting conversion for: ${item.name} (${item.size})`);
-            updateItemStatus(item, 'processing', 'Converting...');
+                        updateItemStatus(item, 'processing', 'Converting...');
             showProgressBar(item, true);
 
             try {
                 let blobToProcess = item.file;
+                let convertedBlob = null;
 
-                // Handle HEIC/HEIF files specifically using heic-convert
-                if (item.isHeic) {
+                if (item.isPdf) {
+                    console.log(`[PDF] File "${item.name}" detected as PDF format page ${item.pdfPageNum}.`);
+                    if (typeof pdfjsLib === 'undefined') {
+                        throw new Error('pdfjsLib is not loaded or failed to initialize.');
+                    }
+                    try {
+                        updateItemStatus(item, 'processing', 'Decoding PDF...');
+                        
+                        const arrayBuffer = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = (e) => resolve(e.target.result);
+                            reader.onerror = (e) => reject(new Error('Failed to read PDF file data.'));
+                            reader.readAsArrayBuffer(item.file);
+                        });
+
+                        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                        const page = await pdf.getPage(item.pdfPageNum);
+                        
+                        // Render at high scale for premium sharp quality
+                        const scale = 2.0;
+                        const viewport = page.getViewport({ scale });
+                        
+                        const canvas = document.createElement('canvas');
+                        canvas.width = viewport.width;
+                        canvas.height = viewport.height;
+                        const context = canvas.getContext('2d');
+                        
+                        // Fill background with white because canvas is transparent but PDF is drawn onto it
+                        context.fillStyle = '#FFFFFF';
+                        context.fillRect(0, 0, canvas.width, canvas.height);
+                        
+                        updateItemStatus(item, 'processing', 'Rendering PDF page...');
+                        await page.render({
+                            canvasContext: context,
+                            viewport: viewport
+                        }).promise;
+                        
+                        convertedBlob = await new Promise((resolve, reject) => {
+                            canvas.toBlob((blob) => {
+                                if (blob) resolve(blob);
+                                else reject(new Error('Canvas conversion failed'));
+                            }, targetMime, quality);
+                        });
+                    } catch (pdfError) {
+                        console.error(`[PDF] Rendering failed:`, pdfError);
+                        throw new Error(`PDF rendering failed: ${pdfError.message || pdfError}`);
+                    }
+                } else if (item.isHeic) {
                     console.log(`[HEIC] File "${item.name}" detected as HEIC format. Initializing heicConvert decoder...`);
                     if (typeof heicConvert === 'undefined') {
                         throw new Error('heicConvert library is not loaded or failed to initialize.');
@@ -354,9 +488,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
-                // Convert blob into target format using canvas
-                console.log(`[Canvas] Loading blob into HTML5 Canvas to encode as ${targetMime} (quality: ${quality})...`);
-                const convertedBlob = await processImageBlob(blobToProcess, targetMime, quality, item);
+                if (!convertedBlob) {
+                    // Convert blob into target format using canvas
+                    console.log(`[Canvas] Loading blob into HTML5 Canvas to encode as ${targetMime} (quality: ${quality})...`);
+                    convertedBlob = await processImageBlob(blobToProcess, targetMime, quality, item);
+                }
                 console.log(`[Canvas] Processing complete! Converted size = ${formatBytes(convertedBlob.size)}`);
                 
                 item.convertedBlob = convertedBlob;
