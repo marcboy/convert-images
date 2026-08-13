@@ -399,6 +399,51 @@ select:focus {
     transform: scale(1.2);
 }
 
+/* Number Input Styling */
+.number-input {
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--border-radius-sm);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.95rem;
+    outline: none;
+    transition: var(--transition-smooth);
+}
+
+.number-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+/* Dimension & File Size Badges */
+.badge-dim {
+    background: rgba(99, 102, 241, 0.15);
+    color: #a5b4fc;
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.badge-size {
+    background: rgba(255, 255, 255, 0.07);
+    color: var(--text-secondary);
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    font-size: 0.78rem;
+    font-weight: 500;
+}
+
+.badge-arrow {
+    color: var(--primary);
+    font-weight: bold;
+    margin: 0 0.15rem;
+}
+
 /* Buttons */
 .btn {
     display: inline-flex;
@@ -648,6 +693,78 @@ select:focus {
     color: var(--text-secondary);
     font-size: 0.9rem;
     margin-top: auto;
+}
+
+/* Custom Toggle Switch */
+.toggle-checkbox {
+    display: none;
+}
+
+.toggle-label {
+    position: relative;
+    width: 48px;
+    height: 24px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    border: 1px solid var(--glass-border);
+    display: inline-block;
+}
+
+.toggle-label::after {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background-color: var(--text-primary);
+    top: 2px;
+    left: 2px;
+    transition: var(--transition-smooth);
+}
+
+.toggle-checkbox:checked + .toggle-label {
+    background-color: var(--primary);
+}
+
+.toggle-checkbox:checked + .toggle-label::after {
+    left: 26px;
+    background-color: #fff;
+}
+
+/* Custom Color Picker Input */
+.color-picker-input {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--glass-border);
+    border-radius: var(--border-radius-sm);
+    background: none;
+    cursor: pointer;
+    padding: 0;
+    transition: var(--transition-smooth);
+}
+
+.color-picker-input::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+.color-picker-input::-webkit-color-swatch {
+    border: none;
+    border-radius: calc(var(--border-radius-sm) - 1px);
+}
+
+.color-picker-input::-moz-color-swatch {
+    border: none;
+    border-radius: calc(var(--border-radius-sm) - 1px);
+}
+
+.color-picker-input:hover {
+    transform: scale(1.05);
+    border-color: var(--primary);
 }
 
 /* Helper Utility Classes */

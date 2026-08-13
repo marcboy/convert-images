@@ -93,6 +93,86 @@
                         </div>
                         <input type="range" id="qualityRange" min="5" max="100" value="85" class="slider">
                     </div>
+
+                    <!-- Resize Options -->
+                    <div class="settings-group">
+                        <label for="resizeToggle"><i data-lucide="scaling"></i> Resize Image</label>
+                        <div class="toggle-wrapper" style="display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem;">
+                            <input type="checkbox" id="resizeToggle" class="toggle-checkbox">
+                            <label for="resizeToggle" class="toggle-label"></label>
+                            <span id="resizeToggleText" style="font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);">Disabled</span>
+                        </div>
+                    </div>
+
+                    <div class="settings-group hidden" id="resizeModeGroup">
+                        <label for="resizeMode"><i data-lucide="ruler"></i> Resize Mode</label>
+                        <div class="select-wrapper">
+                            <select id="resizeMode">
+                                <option value="percentage" selected>Scale Percentage (%)</option>
+                                <option value="dimensions">Custom Dimensions (px)</option>
+                                <option value="maxWidth">Max Width (px)</option>
+                                <option value="maxHeight">Max Height (px)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="settings-group hidden" id="resizePercentGroup">
+                        <div class="label-with-value">
+                            <label for="resizePercentRange"><i data-lucide="percent"></i> Scale Ratio</label>
+                            <span id="resizePercentVal">50%</span>
+                        </div>
+                        <input type="range" id="resizePercentRange" min="10" max="200" value="50" step="5" class="slider">
+                    </div>
+
+                    <div class="settings-group hidden" id="resizeDimensionsGroup">
+                        <div class="dimension-inputs-wrapper" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                <div style="flex: 1;">
+                                    <label style="font-size: 0.8rem;">Width (px)</label>
+                                    <input type="number" id="resizeWidthInput" placeholder="Auto" min="1" class="number-input">
+                                </div>
+                                <span style="align-self: flex-end; padding-bottom: 0.5rem; color: var(--text-secondary);">×</span>
+                                <div style="flex: 1;">
+                                    <label style="font-size: 0.8rem;">Height (px)</label>
+                                    <input type="number" id="resizeHeightInput" placeholder="Auto" min="1" class="number-input">
+                                </div>
+                            </div>
+                            <label class="checkbox-inline" style="font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; color: var(--text-secondary);">
+                                <input type="checkbox" id="maintainAspectToggle" checked> Maintain Aspect Ratio
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="settings-group hidden" id="resizeMaxDimGroup">
+                        <label for="resizeMaxDimInput" id="resizeMaxDimLabel"><i data-lucide="maximize-2"></i> Max Dimension (px)</label>
+                        <input type="number" id="resizeMaxDimInput" value="1920" min="1" class="number-input">
+                    </div>
+
+                    <!-- Add Border Options -->
+                    <div class="settings-group">
+                        <label for="borderToggle"><i data-lucide="frame"></i> Add Border</label>
+                        <div class="toggle-wrapper" style="display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem;">
+                            <input type="checkbox" id="borderToggle" class="toggle-checkbox">
+                            <label for="borderToggle" class="toggle-label"></label>
+                            <span id="borderToggleText" style="font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);">Disabled</span>
+                        </div>
+                    </div>
+
+                    <div class="settings-group hidden" id="borderColorGroup">
+                        <label for="borderColor"><i data-lucide="palette"></i> Border Color</label>
+                        <div class="color-picker-wrapper" style="display: flex; align-items: center; gap: 0.75rem;">
+                            <input type="color" id="borderColor" value="#ffffff" class="color-picker-input">
+                            <span id="borderColorVal" style="font-family: monospace; font-size: 0.9rem; font-weight: 600; color: var(--primary);">#FFFFFF</span>
+                        </div>
+                    </div>
+
+                    <div class="settings-group hidden" id="borderWidthGroup">
+                        <div class="label-with-value">
+                            <label for="borderWidthRange"><i data-lucide="expand"></i> Border Width</label>
+                            <span id="borderWidthVal">20px</span>
+                        </div>
+                        <input type="range" id="borderWidthRange" min="1" max="150" value="20" class="slider">
+                    </div>
                 </div>
 
                 <!-- Batch Actions -->
@@ -156,9 +236,9 @@
 
     <footer class="footer">
         <p>&copy; 2026 PixelShift. Built with premium local processing.</p>
-        <p style="font-size: 0.8rem; margin-top: 0.5rem; opacity: 0.8;">v1.4.0 — Last Updated: August 1, 2026, 2:25 AM PDT</p>
+        <p style="font-size: 0.8rem; margin-top: 0.5rem; opacity: 0.8;">v1.5.0 — Last Updated: August 12, 2026, 7:25 PM PDT</p>
     </footer>
 
-    <script src="app.js?v=1.4.0"></script>
+    <script src="app.js?v=1.5.0"></script>
 </body>
 </html>

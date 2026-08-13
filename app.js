@@ -16,6 +16,76 @@ document.addEventListener('DOMContentLoaded', () => {
     const queueContainer = document.getElementById('queueContainer');
     const queueList = document.getElementById('queueList');
     
+    // Border Customization Elements
+    const borderToggle = document.getElementById('borderToggle');
+    const borderToggleText = document.getElementById('borderToggleText');
+    const borderColorGroup = document.getElementById('borderColorGroup');
+    const borderColor = document.getElementById('borderColor');
+    const borderColorVal = document.getElementById('borderColorVal');
+    const borderWidthGroup = document.getElementById('borderWidthGroup');
+    const borderWidthRange = document.getElementById('borderWidthRange');
+    const borderWidthVal = document.getElementById('borderWidthVal');
+
+    // Resize Customization Elements
+    const resizeToggle = document.getElementById('resizeToggle');
+    const resizeToggleText = document.getElementById('resizeToggleText');
+    const resizeModeGroup = document.getElementById('resizeModeGroup');
+    const resizeMode = document.getElementById('resizeMode');
+    const resizePercentGroup = document.getElementById('resizePercentGroup');
+    const resizePercentRange = document.getElementById('resizePercentRange');
+    const resizePercentVal = document.getElementById('resizePercentVal');
+    const resizeDimensionsGroup = document.getElementById('resizeDimensionsGroup');
+    const resizeWidthInput = document.getElementById('resizeWidthInput');
+    const resizeHeightInput = document.getElementById('resizeHeightInput');
+    const maintainAspectToggle = document.getElementById('maintainAspectToggle');
+    const resizeMaxDimGroup = document.getElementById('resizeMaxDimGroup');
+    const resizeMaxDimLabel = document.getElementById('resizeMaxDimLabel');
+    const resizeMaxDimInput = document.getElementById('resizeMaxDimInput');
+
+    // Resize Settings Event Listeners
+    resizeToggle.addEventListener('change', () => {
+        const enabled = resizeToggle.checked;
+        resizeToggleText.textContent = enabled ? 'Enabled' : 'Disabled';
+        if (enabled) {
+            resizeModeGroup.classList.remove('hidden');
+            updateResizeControlsVisibility();
+        } else {
+            resizeModeGroup.classList.add('hidden');
+            resizePercentGroup.classList.add('hidden');
+            resizeDimensionsGroup.classList.add('hidden');
+            resizeMaxDimGroup.classList.add('hidden');
+        }
+    });
+
+    resizeMode.addEventListener('change', updateResizeControlsVisibility);
+
+    function updateResizeControlsVisibility() {
+        if (!resizeToggle.checked) return;
+        const mode = resizeMode.value;
+        
+        resizePercentGroup.classList.add('hidden');
+        resizeDimensionsGroup.classList.add('hidden');
+        resizeMaxDimGroup.classList.add('hidden');
+
+        if (mode === 'percentage') {
+            resizePercentGroup.classList.remove('hidden');
+        } else if (mode === 'dimensions') {
+            resizeDimensionsGroup.classList.remove('hidden');
+        } else if (mode === 'maxWidth') {
+            resizeMaxDimLabel.innerHTML = `<i data-lucide="arrow-right-left"></i> Max Width (px)`;
+            resizeMaxDimGroup.classList.remove('hidden');
+            lucide.createIcons();
+        } else if (mode === 'maxHeight') {
+            resizeMaxDimLabel.innerHTML = `<i data-lucide="arrow-up-down"></i> Max Height (px)`;
+            resizeMaxDimGroup.classList.remove('hidden');
+            lucide.createIcons();
+        }
+    }
+
+    resizePercentRange.addEventListener('input', () => {
+        resizePercentVal.textContent = `${resizePercentRange.value}%`;
+    });
+    
     // Debug Console Elements
     const debugLogs = document.getElementById('debugLogs');
     const debugToggle = document.getElementById('debugToggle');
@@ -134,6 +204,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // Quality slider change
     qualityRange.addEventListener('input', () => {
         qualityVal.textContent = `${qualityRange.value}%`;
+    });
+
+    // Border Settings Events
+    borderToggle.addEventListener('change', () => {
+        const enabled = borderToggle.checked;
+        borderToggleText.textContent = enabled ? 'Enabled' : 'Disabled';
+        if (enabled) {
+            borderColorGroup.classList.remove('hidden');
+            borderWidthGroup.classList.remove('hidden');
+        } else {
+            borderColorGroup.classList.add('hidden');
+            borderWidthGroup.classList.add('hidden');
+        }
+    });
+
+    borderColor.addEventListener('input', () => {
+        borderColorVal.textContent = borderColor.value.toUpperCase();
+    });
+
+    borderWidthRange.addEventListener('input', () => {
+        borderWidthVal.textContent = `${borderWidthRange.value}px`;
     });
 
     // Clear all files
@@ -285,7 +376,8 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="item-info">
                 <span class="item-name" title="${item.name}">${item.name}</span>
                 <div class="item-meta">
-                    <span>${item.size}</span>
+                    <span class="badge-size" id="size_${item.id}">${item.size}</span>
+                    <span class="badge-dim" id="dim_${item.id}">Loading dimensions...</span>
                     <span class="item-status status-waiting" id="status_${item.id}">
                         <i data-lucide="clock" style="width: 14px; height: 14px;"></i> Waiting
                     </span>
@@ -310,29 +402,50 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Generate thumbnails locally
+    // Generate thumbnails locally & extract dimensions
     function generateThumbnail(item) {
         if (item.isHeic) {
-            // For HEIC files, we don't render a thumbnail instantly to avoid freezing.
-            // When converting, we will show the converted preview.
+            // HEIC dimensions will be updated after initial conversion decode or preview
+            const dimEl = document.getElementById(`dim_${item.id}`);
+            if (dimEl) dimEl.textContent = 'HEIC Image';
             return;
         }
 
-        const reader = new FileReader();
-        reader.onload = (e) => {
+        const objectURL = URL.createObjectURL(item.file);
+        const img = new Image();
+        img.onload = () => {
+            item.originalWidth = img.naturalWidth;
+            item.originalHeight = img.naturalHeight;
+            const dimEl = document.getElementById(`dim_${item.id}`);
+            if (dimEl) {
+                dimEl.textContent = `${img.naturalWidth} × ${img.naturalHeight} px`;
+            }
             const thumbImg = document.getElementById(`thumb_${item.id}`);
             if (thumbImg) {
-                thumbImg.src = e.target.result;
+                thumbImg.src = objectURL;
             }
         };
-        reader.readAsDataURL(item.file);
-     }
+        img.onerror = () => {
+            const dimEl = document.getElementById(`dim_${item.id}`);
+            if (dimEl) dimEl.textContent = 'Unknown px';
+        };
+        img.src = objectURL;
+    }
 
-    // Generate thumbnail for a PDF page
+    // Generate thumbnail for a PDF page & extract original viewport dimensions
     async function generatePdfThumbnail(item, pdf) {
         try {
             const page = await pdf.getPage(item.pdfPageNum);
-            const scale = 0.2; // Small scale for preview
+            const standardViewport = page.getViewport({ scale: 1.0 });
+            item.originalWidth = Math.round(standardViewport.width);
+            item.originalHeight = Math.round(standardViewport.height);
+
+            const dimEl = document.getElementById(`dim_${item.id}`);
+            if (dimEl) {
+                dimEl.textContent = `${item.originalWidth} × ${item.originalHeight} px`;
+            }
+
+            const scale = 0.2; // Small scale for preview thumbnail
             const viewport = page.getViewport({ scale });
             const canvas = document.createElement('canvas');
             canvas.width = viewport.width;
@@ -428,20 +541,34 @@ document.addEventListener('DOMContentLoaded', () => {
                         const scale = 2.0;
                         const viewport = page.getViewport({ scale });
                         
+                        const borderEnabled = borderToggle.checked;
+                        const borderWidth = borderEnabled ? parseInt(borderWidthRange.value) : 0;
+                        const borderColorHex = borderEnabled ? borderColor.value : '#ffffff';
+
                         const canvas = document.createElement('canvas');
-                        canvas.width = viewport.width;
-                        canvas.height = viewport.height;
+                        canvas.width = viewport.width + (borderWidth * 2);
+                        canvas.height = viewport.height + (borderWidth * 2);
                         const context = canvas.getContext('2d');
                         
-                        // Fill background with white because canvas is transparent but PDF is drawn onto it
+                        if (borderEnabled && borderWidth > 0) {
+                            context.fillStyle = borderColorHex;
+                            context.fillRect(0, 0, canvas.width, canvas.height);
+                        }
+                        
+                        context.save();
+                        context.translate(borderWidth, borderWidth);
+                        
+                        // Fill PDF background page area with white
                         context.fillStyle = '#FFFFFF';
-                        context.fillRect(0, 0, canvas.width, canvas.height);
+                        context.fillRect(0, 0, viewport.width, viewport.height);
                         
                         updateItemStatus(item, 'processing', 'Rendering PDF page...');
                         await page.render({
                             canvasContext: context,
                             viewport: viewport
                         }).promise;
+                        
+                        context.restore();
                         
                         convertedBlob = await new Promise((resolve, reject) => {
                             canvas.toBlob((blob) => {
@@ -509,6 +636,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 showProgressBar(item, false);
                 replaceDownloadButton(item);
 
+                // Update metadata badge (display size on disk change and dimension change)
+                const sizeEl = document.getElementById(`size_${item.id}`);
+                if (sizeEl) {
+                    sizeEl.innerHTML = `<span style="text-decoration: line-through; opacity: 0.7;">${item.size}</span> <span class="badge-arrow">→</span> <strong>${formatBytes(convertedBlob.size)}</strong>`;
+                }
+
+                const dimEl = document.getElementById(`dim_${item.id}`);
+                if (dimEl && item.finalWidth && item.finalHeight) {
+                    if (item.originalWidth && item.originalHeight && (item.originalWidth !== item.finalWidth || item.originalHeight !== item.finalHeight)) {
+                        dimEl.innerHTML = `<span style="opacity: 0.7;">${item.originalWidth}×${item.originalHeight}</span> <span class="badge-arrow">→</span> <strong>${item.finalWidth} × ${item.finalHeight} px</strong>`;
+                    } else {
+                        dimEl.textContent = `${item.finalWidth} × ${item.finalHeight} px`;
+                    }
+                }
+
                 // Update thumbnail for HEIC now that it's processed
                 if (item.isHeic) {
                     const thumbUrl = URL.createObjectURL(convertedBlob);
@@ -529,6 +671,60 @@ document.addEventListener('DOMContentLoaded', () => {
         updateUIState();
     }
 
+    // Helper to calculate resized dimensions
+    function calculateTargetDimensions(srcWidth, srcHeight) {
+        if (!resizeToggle.checked) {
+            return { targetWidth: srcWidth, targetHeight: srcHeight };
+        }
+
+        const mode = resizeMode.value;
+        let targetWidth = srcWidth;
+        let targetHeight = srcHeight;
+
+        if (mode === 'percentage') {
+            const ratio = parseFloat(resizePercentRange.value) / 100;
+            targetWidth = Math.max(1, Math.round(srcWidth * ratio));
+            targetHeight = Math.max(1, Math.round(srcHeight * ratio));
+        } else if (mode === 'dimensions') {
+            const customW = parseInt(resizeWidthInput.value, 10);
+            const customH = parseInt(resizeHeightInput.value, 10);
+            const maintainAspect = maintainAspectToggle.checked;
+
+            if (customW > 0 && customH > 0) {
+                if (maintainAspect) {
+                    const scale = Math.min(customW / srcWidth, customH / srcHeight);
+                    targetWidth = Math.max(1, Math.round(srcWidth * scale));
+                    targetHeight = Math.max(1, Math.round(srcHeight * scale));
+                } else {
+                    targetWidth = customW;
+                    targetHeight = customH;
+                }
+            } else if (customW > 0) {
+                targetWidth = customW;
+                targetHeight = maintainAspect ? Math.max(1, Math.round(srcHeight * (customW / srcWidth))) : srcHeight;
+            } else if (customH > 0) {
+                targetHeight = customH;
+                targetWidth = maintainAspect ? Math.max(1, Math.round(srcWidth * (customH / srcHeight))) : srcWidth;
+            }
+        } else if (mode === 'maxWidth') {
+            const maxW = parseInt(resizeMaxDimInput.value, 10);
+            if (maxW > 0 && srcWidth > maxW) {
+                const ratio = maxW / srcWidth;
+                targetWidth = maxW;
+                targetHeight = Math.max(1, Math.round(srcHeight * ratio));
+            }
+        } else if (mode === 'maxHeight') {
+            const maxH = parseInt(resizeMaxDimInput.value, 10);
+            if (maxH > 0 && srcHeight > maxH) {
+                const ratio = maxH / srcHeight;
+                targetHeight = maxH;
+                targetWidth = Math.max(1, Math.round(srcWidth * ratio));
+            }
+        }
+
+        return { targetWidth, targetHeight };
+    }
+
     // Process normal image blobs (using canvas for conversions/resizing)
     function processImageBlob(blob, targetMime, quality, queueItem) {
         return new Promise((resolve, reject) => {
@@ -536,12 +732,31 @@ document.addEventListener('DOMContentLoaded', () => {
             const objectURL = URL.createObjectURL(blob);
             
             img.onload = () => {
+                const srcW = img.naturalWidth;
+                const srcH = img.naturalHeight;
+                if (!queueItem.originalWidth) queueItem.originalWidth = srcW;
+                if (!queueItem.originalHeight) queueItem.originalHeight = srcH;
+
+                const { targetWidth, targetHeight } = calculateTargetDimensions(srcW, srcH);
+                queueItem.finalWidth = targetWidth;
+                queueItem.finalHeight = targetHeight;
+
+                const borderEnabled = borderToggle.checked;
+                const borderWidth = borderEnabled ? parseInt(borderWidthRange.value) : 0;
+                const borderColorHex = borderEnabled ? borderColor.value : '#ffffff';
+
                 const canvas = document.createElement('canvas');
-                canvas.width = img.naturalWidth;
-                canvas.height = img.naturalHeight;
+                canvas.width = targetWidth + (borderWidth * 2);
+                canvas.height = targetHeight + (borderWidth * 2);
                 const ctx = canvas.getContext('2d');
                 
-                ctx.drawImage(img, 0, 0);
+                if (borderEnabled && borderWidth > 0) {
+                    ctx.fillStyle = borderColorHex;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
+                
+                // Draw resized image
+                ctx.drawImage(img, 0, 0, srcW, srcH, borderWidth, borderWidth, targetWidth, targetHeight);
                 URL.revokeObjectURL(objectURL);
 
                 canvas.toBlob((resultBlob) => {
