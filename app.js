@@ -51,15 +51,14 @@ document.addEventListener('DOMContentLoaded', () => {
         resizeToggleText.textContent = enabled ? 'Enabled' : 'Disabled';
         if (enabled) {
             resizeModeGroup.classList.remove('hidden');
-            resizeSummaryBox.classList.remove('hidden');
             updateResizeControlsVisibility();
         } else {
             resizeModeGroup.classList.add('hidden');
             resizePercentGroup.classList.add('hidden');
             resizeDimensionsGroup.classList.add('hidden');
             resizeMaxDimGroup.classList.add('hidden');
-            resizeSummaryBox.classList.add('hidden');
         }
+        updateQueueEstimates();
     });
 
     resizeMode.addEventListener('change', updateResizeControlsVisibility);
