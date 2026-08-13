@@ -464,13 +464,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Also update the prominent Resize Summary Banner for the active file
         if (fileQueue.length > 0) {
-            const firstWithDim = fileQueue.find(i => i.originalWidth && i.originalHeight) || fileQueue[0];
-            if (firstWithDim && firstWithDim.originalWidth && firstWithDim.originalHeight) {
-                const { targetWidth, targetHeight } = calculateTargetDimensions(firstWithDim.originalWidth, firstWithDim.originalHeight);
-                summaryOriginal.textContent = `${firstWithDim.originalWidth} × ${firstWithDim.originalHeight} px (${firstWithDim.size})`;
+            const firstItem = fileQueue[0];
+            if (firstItem.originalWidth && firstItem.originalHeight) {
+                const { targetWidth, targetHeight } = calculateTargetDimensions(firstItem.originalWidth, firstItem.originalHeight);
+                summaryOriginal.textContent = `${firstItem.originalWidth} × ${firstItem.originalHeight} px (${firstItem.size})`;
 
                 const targetMime = formatSelect.value;
-                const origPixelCount = firstWithDim.originalWidth * firstWithDim.originalHeight;
+                const origPixelCount = firstItem.originalWidth * firstItem.originalHeight;
                 const newPixelCount = targetWidth * targetHeight;
                 const pixelRatio = origPixelCount > 0 ? (newPixelCount / origPixelCount) : 1;
                 
@@ -481,19 +481,59 @@ document.addEventListener('DOMContentLoaded', () => {
                     const quality = parseFloat(qualityRange.value) / 100;
                     formatFactor = 0.4 + (quality * 0.5);
                 }
-                const estimatedSizeBytes = Math.round(firstWithDim.file.size * pixelRatio * formatFactor);
+                const estimatedSizeBytes = Math.round(firstItem.file.size * pixelRatio * formatFactor);
 
                 summaryTarget.textContent = `${targetWidth} × ${targetHeight} px (~${formatBytes(estimatedSizeBytes)})`;
+            } else {
+                summaryOriginal.textContent = `Processing HEIC... (${firstItem.size})`;
+                summaryTarget.textContent = `Pending Decode`;
             }
         }
     }
 
     // Generate thumbnails locally & extract dimensions
-    function generateThumbnail(item) {
+    async function generateThumbnail(item) {
         if (item.isHeic) {
-            // HEIC dimensions will be updated after initial conversion decode or preview
             const dimEl = document.getElementById(`dim_${item.id}`);
-            if (dimEl) dimEl.textContent = 'HEIC Image';
+            if (dimEl) dimEl.textContent = 'Decoding HEIC...';
+
+            try {
+                if (typeof heicConvert !== 'undefined') {
+                    const arrayBuffer = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => resolve(e.target.result);
+                        reader.onerror = (e) => reject(new Error('Failed to read HEIC file data.'));
+                        reader.readAsArrayBuffer(item.file);
+                    });
+
+                    const outputBuffer = await heicConvert({
+                        buffer: new Uint8Array(arrayBuffer),
+                        format: 'JPEG',
+                        quality: 0.1 // Fast low-quality preview for dimensions & thumbnail
+                    });
+
+                    const blob = new Blob([outputBuffer], { type: 'image/jpeg' });
+                    const objectURL = URL.createObjectURL(blob);
+                    const img = new Image();
+                    img.onload = () => {
+                        item.originalWidth = img.naturalWidth;
+                        item.originalHeight = img.naturalHeight;
+                        if (dimEl) {
+                            dimEl.textContent = `${img.naturalWidth} × ${img.naturalHeight} px`;
+                        }
+                        const thumbImg = document.getElementById(`thumb_${item.id}`);
+                        if (thumbImg) {
+                            thumbImg.src = objectURL;
+                        }
+                        updateQueueEstimates();
+                    };
+                    img.src = objectURL;
+                }
+            } catch (err) {
+                console.warn(`[HEIC] Quick header inspection for "${item.name}" failed:`, err);
+                if (dimEl) dimEl.textContent = 'HEIC Image';
+                updateQueueEstimates();
+            }
             return;
         }
 
