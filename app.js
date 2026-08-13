@@ -41,6 +41,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const resizeMaxDimGroup = document.getElementById('resizeMaxDimGroup');
     const resizeMaxDimLabel = document.getElementById('resizeMaxDimLabel');
     const resizeMaxDimInput = document.getElementById('resizeMaxDimInput');
+    const resizeSummaryBox = document.getElementById('resizeSummaryBox');
+    const summaryOriginal = document.getElementById('summaryOriginal');
+    const summaryTarget = document.getElementById('summaryTarget');
 
     // Resize Settings Event Listeners
     resizeToggle.addEventListener('change', () => {
@@ -48,12 +51,14 @@ document.addEventListener('DOMContentLoaded', () => {
         resizeToggleText.textContent = enabled ? 'Enabled' : 'Disabled';
         if (enabled) {
             resizeModeGroup.classList.remove('hidden');
+            resizeSummaryBox.classList.remove('hidden');
             updateResizeControlsVisibility();
         } else {
             resizeModeGroup.classList.add('hidden');
             resizePercentGroup.classList.add('hidden');
             resizeDimensionsGroup.classList.add('hidden');
             resizeMaxDimGroup.classList.add('hidden');
+            resizeSummaryBox.classList.add('hidden');
         }
     });
 
@@ -456,6 +461,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 sizeEl.innerHTML = `<span style="opacity:0.7;">${item.size}</span> <span class="badge-arrow">→</span> <strong>~${formatBytes(estimatedSizeBytes)}</strong>`;
             }
         });
+
+        // Also update the prominent Resize Summary Banner for the active file
+        if (fileQueue.length > 0) {
+            const firstWithDim = fileQueue.find(i => i.originalWidth && i.originalHeight) || fileQueue[0];
+            if (firstWithDim && firstWithDim.originalWidth && firstWithDim.originalHeight) {
+                const { targetWidth, targetHeight } = calculateTargetDimensions(firstWithDim.originalWidth, firstWithDim.originalHeight);
+                summaryOriginal.textContent = `${firstWithDim.originalWidth} × ${firstWithDim.originalHeight} px (${firstWithDim.size})`;
+
+                const targetMime = formatSelect.value;
+                const origPixelCount = firstWithDim.originalWidth * firstWithDim.originalHeight;
+                const newPixelCount = targetWidth * targetHeight;
+                const pixelRatio = origPixelCount > 0 ? (newPixelCount / origPixelCount) : 1;
+                
+                let formatFactor = 0.85;
+                if (targetMime === 'image/webp') formatFactor = 0.65;
+                else if (targetMime === 'image/png') formatFactor = 1.1;
+                else if (targetMime === 'image/jpeg') {
+                    const quality = parseFloat(qualityRange.value) / 100;
+                    formatFactor = 0.4 + (quality * 0.5);
+                }
+                const estimatedSizeBytes = Math.round(firstWithDim.file.size * pixelRatio * formatFactor);
+
+                summaryTarget.textContent = `${targetWidth} × ${targetHeight} px (~${formatBytes(estimatedSizeBytes)})`;
+            }
+        }
     }
 
     // Generate thumbnails locally & extract dimensions
