@@ -84,6 +84,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     resizePercentRange.addEventListener('input', () => {
         resizePercentVal.textContent = `${resizePercentRange.value}%`;
+        updateQueueEstimates();
+    });
+
+    [resizeToggle, resizeMode, resizeWidthInput, resizeHeightInput, maintainAspectToggle, resizeMaxDimInput, formatSelect, qualityRange, borderToggle, borderWidthRange].forEach(elem => {
+        if (elem) {
+            elem.addEventListener('input', updateQueueEstimates);
+            elem.addEventListener('change', updateQueueEstimates);
+        }
     });
     
     // Debug Console Elements
@@ -402,6 +410,54 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Dynamically update dimension & file size estimates for queue items
+    function updateQueueEstimates() {
+        fileQueue.forEach(item => {
+            if (item.status === 'completed') return; // Completed items already show exact final metrics
+
+            const sizeEl = document.getElementById(`size_${item.id}`);
+            const dimEl = document.getElementById(`dim_${item.id}`);
+
+            if (!item.originalWidth || !item.originalHeight) {
+                return;
+            }
+
+            const { targetWidth, targetHeight } = calculateTargetDimensions(item.originalWidth, item.originalHeight);
+            
+            // Render dimension estimate
+            if (dimEl) {
+                if (targetWidth !== item.originalWidth || targetHeight !== item.originalHeight) {
+                    dimEl.innerHTML = `<span style="opacity:0.7;">${item.originalWidth}×${item.originalHeight}</span> <span class="badge-arrow">→</span> <strong>${targetWidth} × ${targetHeight} px (Est.)</strong>`;
+                } else {
+                    dimEl.textContent = `${item.originalWidth} × ${item.originalHeight} px`;
+                }
+            }
+
+            // Estimate output file size using pixel ratio scaling and quality factor
+            if (sizeEl) {
+                const targetMime = formatSelect.value;
+                const origPixelCount = item.originalWidth * item.originalHeight;
+                const newPixelCount = targetWidth * targetHeight;
+                const pixelRatio = origPixelCount > 0 ? (newPixelCount / origPixelCount) : 1;
+
+                let formatFactor = 0.85;
+                if (targetMime === 'image/webp') formatFactor = 0.65;
+                else if (targetMime === 'image/png') formatFactor = 1.1;
+                else if (targetMime === 'image/jpeg') {
+                    const quality = parseFloat(qualityRange.value) / 100;
+                    formatFactor = 0.4 + (quality * 0.5);
+                }
+
+                let estimatedSizeBytes = Math.round(item.file.size * pixelRatio * formatFactor);
+                if (item.file.size > 0 && pixelRatio === 1 && targetMime === (item.file.type || 'image/jpeg')) {
+                    estimatedSizeBytes = item.file.size;
+                }
+
+                sizeEl.innerHTML = `<span style="opacity:0.7;">${item.size}</span> <span class="badge-arrow">→</span> <strong>~${formatBytes(estimatedSizeBytes)}</strong>`;
+            }
+        });
+    }
+
     // Generate thumbnails locally & extract dimensions
     function generateThumbnail(item) {
         if (item.isHeic) {
@@ -424,6 +480,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (thumbImg) {
                 thumbImg.src = objectURL;
             }
+            updateQueueEstimates();
         };
         img.onerror = () => {
             const dimEl = document.getElementById(`dim_${item.id}`);
@@ -444,6 +501,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (dimEl) {
                 dimEl.textContent = `${item.originalWidth} × ${item.originalHeight} px`;
             }
+            updateQueueEstimates();
 
             const scale = 0.2; // Small scale for preview thumbnail
             const viewport = page.getViewport({ scale });
